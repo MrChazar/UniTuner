@@ -2,7 +2,7 @@ from machine import Pin, PWM
 import time
 from lcd_driver import LCD_1inch3
 from ui import Interface, get_measurement
-
+from microphone import Microphone
 
 class Screen:
     def __init__(self):
@@ -27,6 +27,7 @@ class Screen:
 def run():
     screen = Screen()
     ui = Interface()
+    mic = Microphone()
     pins = {button_name: Pin(pin_number, Pin.IN, Pin.PULL_UP)
             for button_name, pin_number in (("A", 15), ("B", 17), ("X", 19), ("Y", 21),
                                             ("UP", 2), ("DOWN", 18),
@@ -39,6 +40,7 @@ def run():
     try:
         while True:
             now = time.ticks_ms()
+            mic.update(now)
             for button_name, pin in pins.items():
                 state = pin.value()
                 if state != raw_states[button_name]:
@@ -55,7 +57,7 @@ def run():
             time.sleep_ms(5)
     finally:
         screen.backlight.deinit()
-
+        mic.off()
 
 if __name__ == "__main__":
     run()
