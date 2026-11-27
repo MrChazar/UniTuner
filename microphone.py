@@ -1,7 +1,9 @@
 from machine import ADC, Pin
+from array import array
 import time
+from tuner import FRAME_SIZE, SAMPLE_RATE
 
-PROG = 20000 # tu trzeba dotestować jaki chcemy próg, żeby uniknąć szumów z otoczenia
+PROG = 10000 # tu trzeba dotestować jaki chcemy próg, żeby uniknąć szumów z otoczenia
 
 class Microphone:
     def __init__(self, adc_pin = 26, prog = PROG, hold_ms = 150):
@@ -10,27 +12,31 @@ class Microphone:
         self.prog = prog
         self.hold_ms = hold_ms
         self.last_trigger = 0
+        self.samples = array('H', [0] * FRAME_SIZE)
         
     def update(self, now):
-        min_val = 65535
-        max_val = 0
-        for _ in range(150):
-            val = self.mic.read_u16()
-            if val < min_val:
-                min_val = val
-            if val > max_val:
-                max_val = val
+        interval = 1000000 // SAMPLE_RATE
+        deadline = time.ticks_us()
+        on_time = True
+        for i in range(len(self.samples)):
+            while time.ticks_diff(time.ticks_us(), deadline) < 0:
+                pass
+            self.samples[i] = self.mic.read_u16()
+            deadline = time.ticks_add(deadline, interval)
+            if time.ticks_diff(time.ticks_us(), deadline) >= 0:
+                on_time = False
 
-        amplituda = max_val - min_val
-
-        if amplituda > self.prog:
+        amplitude = max(self.samples) - min(self.samples)
+        print("amplitude:", amplitude, "on_time:", on_time)
+        if on_time and amplitude > self.prog:
+            print("Trigger")
             self.led.on()
             self.last_trigger = now
-            return True
+            return self.samples
 
         if time.ticks_diff(now, self.last_trigger) >= self.hold_ms:
             self.led.off()
-        return False
+        return None
         
     def off(self):
         self.led.off()

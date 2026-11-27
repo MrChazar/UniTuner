@@ -1,5 +1,6 @@
 from math import sqrt
 from font_data import FONTS
+from tuner import get_measurement
 
 YELLOW = 0xFFDF32
 RED = 0xFF3038
@@ -15,11 +16,6 @@ GLYPHS = {
     }
     for name, font in FONTS.items()
 }
-
-
-def get_measurement(settings):
-    # Funckja do której trzeba podpiąć pomiar z mikrofonu. Na razie zwraca statyczne dane do testów.
-    return {'note': 'A4', 'hz': 445.1, 'cents': 20.0}
 
 
 def text_width(text, font='small', scale=1):

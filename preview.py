@@ -1,4 +1,8 @@
 import tkinter as tk
+from collections import deque
+from tkinter import messagebox
+
+from tuner import FRAME_SIZE, SAMPLE_RATE
 from ui import Interface, get_measurement
 
 
@@ -20,18 +24,39 @@ class Screen:
 
 
 def run():
+    try:
+        import sounddevice as sd
+    except (ImportError, OSError) as error:
+        raise SystemExit("Podgląd wymaga sounddevice i PortAudio. "
+                         "Zainstaluj zależność: python -m pip install sounddevice\n"
+                         + str(error))
+
     root = tk.Tk()
-    root.title("UniTuner - DEMO, statyczny pomiar")
+    root.title("UniTuner – mikrofon komputera")
     root.resizable(False, False)
+    root.protocol("WM_DELETE_WINDOW", root.quit)
     screen = Screen(root)
     ui = Interface()
 
+    latest = deque(maxlen=1)
+
+    def capture(data, frames, timing, status):
+        # PortAudio używa własnego wątku i ponownie wykorzystuje bufor.
+        latest.append(None if status.input_overflow else bytes(data))
+
     def refresh():
-        ui.draw(screen, get_measurement(ui.settings))
+        block = latest.pop() if latest else None
+        measurement = None
+        if block:
+            pcm = memoryview(block).cast('h')
+            samples = [sum(pcm[i:i + stride]) // stride
+                       for i in range(0, len(pcm), stride)]
+            measurement = get_measurement(samples, stream.samplerate / stride, ui.settings)
+        ui.draw(screen, measurement)
+        root.after(100, refresh)
 
     def press_button(button_name):
         ui.handle_button(button_name)
-        refresh()
 
     panel = tk.Frame(root)
     panel.pack()
@@ -43,8 +68,19 @@ def run():
     root.bind("<KeyPress>", lambda event: press_button({"Left": "LEFT", "Right": "RIGHT",
                                                        "Up": "UP", "Down": "DOWN"}[event.keysym])
               if event.keysym in ("Left", "Right", "Up", "Down") else None)
-    refresh()
-    root.mainloop()
+    try:
+        rate = sd.query_devices(kind='input')['default_samplerate']
+        stride = max(1, round(rate / SAMPLE_RATE))
+        with sd.RawInputStream(samplerate=rate, channels=1, dtype='int16',
+                               blocksize=FRAME_SIZE * stride, callback=capture) as stream:
+            refresh()
+            root.mainloop()
+    except sd.PortAudioError as error:
+        messagebox.showerror("UniTuner", "Nie udało się otworzyć mikrofonu. "
+                             "Sprawdź domyślne wejście i uprawnienia do mikrofonu.\n\n"
+                             + str(error), parent=root)
+    finally:
+        root.destroy()
 
 
 if __name__ == "__main__":

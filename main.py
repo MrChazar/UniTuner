@@ -3,6 +3,7 @@ import time
 from lcd_driver import LCD_1inch3
 from ui import Interface, get_measurement
 from microphone import Microphone
+from tuner import SAMPLE_RATE
 
 class Screen:
     def __init__(self):
@@ -40,7 +41,6 @@ def run():
     try:
         while True:
             now = time.ticks_ms()
-            mic.update(now)
             for button_name, pin in pins.items():
                 state = pin.value()
                 if state != raw_states[button_name]:
@@ -52,7 +52,8 @@ def run():
                         if state == 0:
                             ui.handle_button(button_name)
             if time.ticks_diff(now, last_draw) >= 100:
-                ui.draw(screen, get_measurement(ui.settings))
+                samples = mic.update(now)
+                ui.draw(screen, get_measurement(samples, SAMPLE_RATE, ui.settings))
                 last_draw = now
             time.sleep_ms(5)
     finally:
