@@ -26,10 +26,14 @@ def get_measurement(samples, sample_rate, settings, min_amplitude=400):
     if amplitude < min_amplitude or amplitude == 0:
         return None
 
-    # Skalowanie utrzymuje sumy kwadratów w zakresie małych liczb na Pico.
-    signal = bytearray(len(samples))
-    for i in range(len(samples)):
-        signal[i] = (samples[i] - low) * 255 // amplitude
+    # Średnia ważona z trzech próbek tłumi szybkie wahania od szumu.
+    # Skalowanie do bajtu utrzymuje małe sumy kwadratów na Pico.
+    signal = bytearray(len(samples) - 2)
+    scale = 4 * amplitude
+    baseline = 4 * low
+    for i in range(len(signal)):
+        weighted = samples[i] + 2 * samples[i + 1] + samples[i + 2]
+        signal[i] = (weighted - baseline) * 255 // scale
 
     # Pierwsze wyraźne minimum różnicy przebiegów (metoda YIN).
     # Zachowujemy jednakową długość porównania dla każdego przesunięcia.
@@ -42,7 +46,7 @@ def get_measurement(samples, sample_rate, settings, min_amplitude=400):
         if lag >= 3 and left > middle and right >= middle:
             offset = _minimum_offset(left, middle, right)
             minimum = middle + (right - left) * offset / 4
-            if minimum * (lag - 1) < 0.15 * total:
+            if minimum * (lag - 1) < 0.20 * total:
                 period = lag - 1 + offset
                 break
         total += right

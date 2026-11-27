@@ -39,6 +39,8 @@ def run():
     last_change = {button_name: time.ticks_ms() for button_name in pins}
     last_draw = time.ticks_ms()
     try:
+        ui.draw(screen, None)
+        print("UniTuner: main.py, LCD gotowy")
         while True:
             now = time.ticks_ms()
             for button_name, pin in pins.items():
@@ -53,7 +55,10 @@ def run():
                             ui.handle_button(button_name)
             if time.ticks_diff(now, last_draw) >= 100:
                 samples = mic.update(now)
-                ui.draw(screen, get_measurement(samples, SAMPLE_RATE, ui.settings))
+                measurement = get_measurement(samples, SAMPLE_RATE, ui.settings)
+                ui.draw(screen, measurement, samples)
+                if samples is not None:
+                    print("LCD:", measurement if measurement is not None else "brak nuty")
                 last_draw = now
             time.sleep_ms(5)
     finally:

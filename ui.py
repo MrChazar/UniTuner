@@ -52,6 +52,19 @@ def arc_y(x):
     return int(350 - sqrt(170**2 - (x-120)**2))
 
 
+def draw_waveform(screen, samples):
+    low = min(samples)
+    span = max(1, max(samples) - low)
+    width = min(160, len(samples))
+    start_x = (240 - width) // 2
+    last_y = 152 - (samples[0] - low) * 28 // span
+    for x in range(1, width):
+        index = x * (len(samples) - 1) // (width - 1)
+        y = 152 - (samples[index] - low) * 28 // span
+        screen.rect(start_x + x, min(last_y, y), 1, abs(y - last_y) + 1, YELLOW)
+        last_y = y
+
+
 def draw_flag(screen, measurement):
     if measurement is None:
         return
@@ -84,7 +97,7 @@ class Interface:
         elif button_name in ('DOWN', 'Y'):
             settings['a4_hz'] = max(400, settings['a4_hz']-1)
 
-    def draw(self, screen, measurement):
+    def draw(self, screen, measurement, samples=None):
         screen.clear()
         draw_text(screen, '%d Hz' % self.settings['a4_hz'], 14, 9, YELLOW)
         tuning_label = 'Tuning: ' + TUNING_LABELS[self.settings['transposition']]
@@ -93,6 +106,8 @@ class Interface:
         color = GRAY if measurement is None else (GREEN if abs(measurement['cents'])<=5 else RED)
         if measurement is None:
             draw_text(screen, '--', 104, 84, GRAY, 'accidental')
+            if samples is not None and len(samples) >= 2:
+                draw_waveform(screen, samples)
         else:
             note = measurement['note'].rstrip('0123456789-')
             letter = note[0] if note and note[0] in GLYPHS['large'] else 'A'

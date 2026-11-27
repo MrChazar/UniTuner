@@ -3,7 +3,7 @@ from array import array
 import time
 from tuner import FRAME_SIZE, SAMPLE_RATE
 
-PROG = 10000 # tu trzeba dotestować jaki chcemy próg, żeby uniknąć szumów z otoczenia
+PROG = 4000 # tu trzeba dotestować jaki chcemy próg, żeby uniknąć szumów z otoczenia
 
 class Microphone:
     def __init__(self, adc_pin = 26, prog = PROG, hold_ms = 150):
@@ -16,9 +16,10 @@ class Microphone:
         
     def update(self, now):
         interval = 1000000 // SAMPLE_RATE
-        deadline = time.ticks_us()
         on_time = True
-        for i in range(len(self.samples)):
+        indices = range(len(self.samples))
+        deadline = time.ticks_us()
+        for i in indices:
             while time.ticks_diff(time.ticks_us(), deadline) < 0:
                 pass
             self.samples[i] = self.mic.read_u16()
@@ -42,7 +43,6 @@ class Microphone:
         self.led.off()
         
 if __name__ == "__main__":
-    detector = Microphone()
-    while True:
-        detector.update(time.ticks_ms())
-        time.sleep_ms(5)
+    from main import run
+
+    run()
